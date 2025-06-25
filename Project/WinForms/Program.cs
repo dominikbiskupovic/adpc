@@ -1,16 +1,25 @@
-namespace WinForms;
-
-static class Program
+namespace WinForms
 {
-    /// <summary>
-    ///  The main entry point for the application.
-    /// </summary>
-    [STAThread]
-    static void Main()
+    using Newtonsoft.Json;
+    using Configurations;
+    using Services;
+    
+    static class Program
     {
-        // To customize application configuration such as set high DPI settings or default font,
-        // see https://aka.ms/applicationconfiguration.
-        ApplicationConfiguration.Initialize();
-        Application.Run(new Main());
+        [STAThread]
+        static void Main()
+        {
+            ApplicationConfiguration.Initialize();
+
+            var cfgPath = Path.Combine(Application.StartupPath, "appsettings.json");
+            var cfg = JsonConvert.DeserializeObject<AppConfiguration>(File.ReadAllText(cfgPath)) ?? throw new InvalidOperationException("appsettings.json load failed");
+
+            var minioService = new MinioStorageService(cfg.Minio);
+            var mongoService = new MongoDbService(cfg.Mongo);
+            var xenaService = new XenaScraperService(cfg.Xena, minioService, mongoService);
+            var clinicalService = new ClinicalParserService(minioService, mongoService);
+
+            Application.Run(new Main(mongoService, xenaService, clinicalService));
+        }
     }
 }
